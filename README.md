@@ -16,7 +16,7 @@ For more details, please refer to our [paper](https://ieeexplore.ieee.org/docume
 ## Requirements
 ### OS Distribution
 * ubuntu:24.04 (Recommended)
-
+* python : 3.10
 *We have not tested ONNXim on other Linux distributions.*
 ### Python(>=3.8) Packages
 * torch >= 1.10.1
