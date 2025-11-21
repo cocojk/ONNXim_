@@ -1,7 +1,13 @@
 [requires]
-boost/1.79.0
+boost/1.83.0
 robin-hood-hashing/3.11.5
 spdlog/1.11.0
 nlohmann_json/3.11.2
+gtest/1.14.0
+
 [generators]
-cmake
+CMakeDeps
+CMakeToolchain
+
+[layout]
+cmake_layout

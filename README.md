@@ -15,12 +15,12 @@ For more details, please refer to our [paper](https://ieeexplore.ieee.org/docume
 
 ## Requirements
 ### OS Distribution
-* ubuntu:20.04 (Recommended)
+* ubuntu:24.04 (Recommended)
 
 *We have not tested ONNXim on other Linux distributions.*
 ### Python(>=3.8) Packages
 * torch >= 1.10.1
-* conan == 1.57.0
+* conan == 2.22.2
 * onnxruntime >= 1.10.0
 * torchvision >= 0.17.2 (Optional: for ONNX graph generation)
 * optimum >= 1.19.0 (Optional: for ONNX graph generation)
@@ -95,23 +95,8 @@ ONNXim suppo
 
 # Getting Started
 This section describes how to build and run ONNXim with a container-based method and a manual build method.
-## 1. Container-based Method using Docker (Recommended)
-Build a Docker image using the provided Dockerfile.
-```
-$ git clone https://github.com/PSAL-POSTECH/ONNXim.git 
-$ cd ONNXim
-$ docker build . -t onnxim
-```
 
-Run the docker image and the simulator.
-```
-$ docker run -it onnxim
-(docker) cd /workspace/ONNXim
-(docker) ./build/bin/Simulator --config ./configs/systolic_ws_128x128_c4_simple_noc_tpuv4.json --model ./example/models_list.json
-```
-
-
-## 2. Manual Method
+## . Manual Method
 ### Installation
 ```
 $ git clone https://github.com/PSAL-POSTECH/ONNXim.git
@@ -121,7 +106,7 @@ $ git submodule update --recursive --init
 ### Build
 ```
 $ mkdir build && cd build
-$ conan install ..
+$ conan install .. --build=missing
 $ cmake ..
 $ make -j
 ```

@@ -1,51 +1,66 @@
-SET(BINARY Simulator_test)
-SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR})
+cmake_minimum_required(VERSION 3.15)
 
-#
-# import googletest as an external project
-#
+# 실행파일 이름
+set(BINARY Simulator_test)
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR})
+
+# ---------- GoogleTest 외부 프로젝트 ----------
 include(ExternalProject)
 include(GoogleTest)
-externalproject_add(
-  GoogleTest
-  URL https://github.com/google/googletest/archive/release-1.8.1.zip
-  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/lib
-  CMAKE_ARGS -DCMAKE_CXX_FLAGS:STRING="-D_GLIBCXX_USE_CXX11_ABI=0"
-  INSTALL_COMMAND ""
+
+ExternalProject_Add(GoogleTest
+    URL https://github.com/google/googletest/archive/release-1.8.1.zip
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/lib
+    # 굳이 ABI 꼬이게 하는 옵션 넣지 말고 CMake 기본 설정 사용
+    CMAKE_ARGS -DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD}
+    INSTALL_COMMAND ""
 )
 
-externalproject_get_property(GoogleTest source_dir)
-include_directories(${source_dir}/googletest/include)
-include_directories(${source_dir}/googlemock/include)
+# ---------- spdlog (Conan에서 온 거 사용) ----------
+find_package(Boost CONFIG REQUIRED COMPONENTS program_options)
+find_package(spdlog CONFIG REQUIRED)
+find_package(nlohmann_json   CONFIG REQUIRED)
+find_package(robin_hood      CONFIG REQUIRED)
+find_package(GTest CONFIG REQUIRED)
 
-externalproject_get_property(GoogleTest binary_dir)
-set(GTEST_LIBRARY_PATH ${binary_dir}/googlemock/gtest/${CMAKE_FIND_LIBRARY_PREFIXES}gtest.a)
-set(GTEST_LIBRARY GTest::GTest)
-add_library(${GTEST_LIBRARY} UNKNOWN IMPORTED)
-set_target_properties(${GTEST_LIBRARY} PROPERTIES
-  IMPORTED_LOCATION ${GTEST_LIBRARY_PATH})
-add_dependencies(${GTEST_LIBRARY} GoogleTest)
+# ---------- 테스트 소스 ----------
+file(GLOB_RECURSE TEST_SOURCES LIST_DIRECTORIES false
+    "*.h"
+    "*.cc"
+)
 
-set(GMOCK_LIBRARY_PATH ${binary_dir}/googlemock/${CMAKE_FIND_LIBRARY_PREFIXES}gmock.a)
-set(GMOCK_LIBRARY GTest::GMock)
-add_library(${GMOCK_LIBRARY} UNKNOWN IMPORTED)
-set_target_properties(${GMOCK_LIBRARY} PROPERTIES
-  IMPORTED_LOCATION ${GMOCK_LIBRARY_PATH})
-add_dependencies(${GMOCK_LIBRARY} GoogleTest)
-
-file(GLOB_RECURSE TEST_SOURCES LIST_DIRECTORIES false *.h *.cc)
-SET(SOURCES ${TEST_SOURCES})
 add_executable(${BINARY} ${TEST_SOURCES})
 
-target_include_directories(Simulator_test PUBLIC ${ONNX_INCLUDE_DIRS})
-target_include_directories(Simulator_test PUBLIC ${PROJECT_SOURCE_DIR}/src)
-target_link_libraries(Simulator_test Simulator_lib)
-# target_link_libraries(Simulator_test ramulator booksim2)
-# target_link_libraries(Simulator_test nlohmann_json::nlohmann_json ${PROTOBUF_LIB} onnx_proto ${CONAN_LIBS} stdc++fs spdlog::spdlog)
-target_link_libraries(Simulator_test GTest::GTest GTest::GMock)
+# 시뮬레이터 쪽 코드 / ONNX 헤더 include
+target_include_directories(${BINARY}
+    PUBLIC
+        ${ONNX_INCLUDE_DIRS}
+        ${PROJECT_SOURCE_DIR}/src
+)
 
-# gtest_discover_tests(
-#   Simulator_test
-#   WORKING_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}
-# )
-add_test(NAME Simulator_test COMMAND Simulator_test)
+# spdlog 헤더 경로를 테스트 타깃에 명시적으로 추가
+get_target_property(SPDLOG_INCLUDE_DIRS spdlog::spdlog INTERFACE_INCLUDE_DIRECTORIES)
+if (SPDLOG_INCLUDE_DIRS)
+    target_include_directories(${BINARY} PUBLIC ${SPDLOG_INCLUDE_DIRS})
+endif()
+
+
+# ---------- 링크 ----------
+target_link_libraries(${BINARY}
+    PRIVATE
+        ramulator1
+        booksim2
+        ramulator
+        Simulator_lib       # 시뮬레이터 라이브러리
+        spdlog::spdlog      # Conan spdlog
+        nlohmann_json::nlohmann_json
+        onnx_proto
+        Boost::program_options
+        GTest::gtest
+        GTest::gmock
+        GTest::gtest_main
+        pthread
+        stdc++fs
+)
+
+
