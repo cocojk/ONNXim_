@@ -1,0 +1,12 @@
+{
+  "models": [
+     {
+         "name": "opt-175b",
+         "trace_file" : "input-small.csv",
+         "scheduler" : "simple",
+         "scheduler_config": {
+             "max_batch_size": 64  
+          }
+     }
+  ]
+}

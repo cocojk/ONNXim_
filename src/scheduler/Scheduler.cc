@@ -459,20 +459,50 @@ void HalfSplitScheduler::schedule_model(std::unique_ptr<Model> model,
 std::unique_ptr<Tile> HalfSplitScheduler::get_tile(uint32_t core_id) {
   uint32_t target_id = core_id % _request_queue.size();
   uint32_t req_id = _request_queue[target_id].request_id;
-  if (_executable_tile_queue_table[req_id].empty()) {
-    std::unique_ptr<Tile> tile = std::make_unique<Tile>(Tile{});
-    tile->status = Tile::Status::EMPTY;
-    return tile;
-  } else {
-    std::unique_ptr<Tile> tile = std::move(_executable_tile_queue_table[req_id].front());
-    _executable_tile_queue_table[req_id].pop_front();
-    if (!_active_layers_map[tile->layer_id].launched) {
+  
+  spdlog::debug("get_tile req_id calculation core_id {} _request_queue.size {} target_id {} req_id {} at {}",
+          core_id,_request_queue.size(),target_id,req_id,*_core_cycle);
+    
+  // step 1. find the req_id 
+  auto it = _executable_tile_queue_table.find(req_id);
+
+  // step 2. if there is no req_id and empty 
+  if (it == _executable_tile_queue_table.end() || it->second.empty()) {
+
+      uint32_t alt_req_id = UINT32_MAX;
+
+      // step 3. find another request 
+      for (auto &kv : _executable_tile_queue_table) {
+          if (!kv.second.empty()) {
+              alt_req_id = kv.first;   // ¿? req_id ¿?¿? ¿?
+              break;
+          }
+      }
+
+      // If no other one, return empty 
+      if (alt_req_id == UINT32_MAX) {
+          std::unique_ptr<Tile> tile = std::make_unique<Tile>(Tile{});
+          tile->status = Tile::Status::EMPTY;
+          spdlog::debug("get_tile: all queues empty, core_id {} at {}", core_id,*_core_cycle);
+          return tile;
+      }
+
+      // If find one, return valid tile
+      req_id = alt_req_id;
+      it     = _executable_tile_queue_table.find(req_id);
+  }
+
+  std::unique_ptr<Tile> tile = std::move(_executable_tile_queue_table[req_id].front());
+  _executable_tile_queue_table[req_id].pop_front();
+  if (!_active_layers_map[tile->layer_id].launched) {
       _active_layers_map[tile->layer_id].launched = true;
       _active_layers_map[tile->layer_id].start_cycle = *_core_cycle;
       spdlog::info("Start layer {}", _active_layers_map[tile->layer_id].name);
-    }
-    return tile;
   }
+
+  spdlog::debug("get_tile core_id {} req_id {} layer_id {} remain_tiles {} finished_tiles {} ",
+          core_id,req_id,tile->layer_id,_active_layers_map[tile->layer_id].remain_tiles, _active_layers_map[tile->layer_id].finished_tiles);
+  return tile;
 }
 
 void HalfSplitScheduler::finish_tile(uint32_t core_id, int layer_id) {
@@ -480,6 +510,8 @@ void HalfSplitScheduler::finish_tile(uint32_t core_id, int layer_id) {
   assert(_active_layers_map[layer_id].remain_tiles > 0);
   _active_layers_map[layer_id].remain_tiles--;
   _active_layers_map[layer_id].finished_tiles++;
+  spdlog::debug("finish_tile core_id {} layer_id {} remain_tiles {} finished_tiles {} at {}",
+          core_id,layer_id,_active_layers_map[layer_id].remain_tiles, _active_layers_map[layer_id].finished_tiles,*_core_cycle);
 
   if (_active_layers_map[layer_id].remain_tiles == 0) {
     _active_layers_map[layer_id].finish_cycle = *_core_cycle;
@@ -515,6 +547,9 @@ void HalfSplitScheduler::refresh_status() {
                      *_core_cycle);
         std::unique_ptr<Model> finished_model = std::move(req->model);
         req = _request_queue.erase(req);
+        if(finished_model->check_language_model()) {
+            static_cast<Simulator*>(_simulator)->finish_language_model(finished_model->get_id());
+        }
         if (finished_model->check_regressive()) {
           finished_model->prepare_regressive();
           static_cast<Simulator*>(_simulator)->register_model(std::move(finished_model));

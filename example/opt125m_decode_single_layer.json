@@ -1,0 +1,14 @@
+{
+  "models": [
+     {
+         "name": "opt-125m",
+         "trace_file" : "decode_test.csv",
+         "scheduler" : "simple",
+         "scheduler_config": {
+             "max_batch_size": 1,
+             "check_mem_size": false
+          },
+         "run_single_layer": true
+     }
+  ]
+}

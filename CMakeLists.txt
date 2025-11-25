@@ -8,7 +8,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Conan 2 (CMakeDeps) 가 만들어준 패키지 설정들 위치
 #   build/Release/generators 안에 boost / spdlog / nlohmann_json / robin_hood cmake 파일들 있음
-list(APPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/Release/generators")
+#list(APPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/Release/generators")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    list(APPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/Debug/generators")
+endif()
+
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    list(APPEND CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/Release/generators")
+endif()
 
 # ===== Conan 패키지 =====
 # conanfile.txt:

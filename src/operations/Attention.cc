@@ -688,6 +688,8 @@ void Attention::calculate_loops(Mapping& mapping) {
         uint32_t tiles_per_head = std::max(ceil_div(seq_len * _config.precision, acc_spad_capacity),
                                           ceil_div(2 * seq_len * _dk * _config.precision, 
                                                     spad_capacity - per_query_size));
+        
+        spdlog::info("[Attention] _seq {} ceil_div(seq_len * _config.precision, acc_spad_capacity) {} ceil_div(2 * seq_len * _dk * _config.precision,spad_capacity - per_query_size) {} ",_seq,ceil_div(seq_len * _config.precision, acc_spad_capacity),ceil_div(2 * seq_len * _dk * _config.precision,spad_capacity - per_query_size));
         int tile_out_loop = _nkvh;
         if(tiles_per_head > 1) {
             q_len = 1;
@@ -701,6 +703,8 @@ void Attention::calculate_loops(Mapping& mapping) {
             q_len = std::min(q_len, (uint32_t)max_q_spad);
             tile_out_loop = ceil_div(_q_len, q_len) * _nkvh;
         }
+        
+        spdlog::info("[Attention] tiles_per_head {} seq_len {} acc_spad_capacity {} _dk {} spad_capacity {} per_query_size {} ceil_div(seq_len * _config.precision, acc_spad_capacity) {} ceil_div(2 * seq_len * _dk * _config.precision,spad_capacity - per_query_size) {} ",tiles_per_head,seq_len,acc_spad_capacity,_dk,spad_capacity,per_query_size,ceil_div(seq_len * _config.precision, acc_spad_capacity),ceil_div(2 * seq_len * _dk * _config.precision,spad_capacity - per_query_size));
 
         uint32_t total_spad_size_per_head = 2 * seq_len * _dk +  heads_per_kv * q_len * _dk;
         uint32_t total_acc_size_per_head = seq_len * q_len;

@@ -115,6 +115,7 @@ void Core::cycle() {
       }
       if (!buffer->check_allocated(inst->dest_addr, buffer_id) &&
           buffer->check_remain(inst->size, buffer_id)) {
+        spdlog::debug("[Core {}] MVIN issue addr: {:x}, size: {:x} at {}", _id, inst->dest_addr, inst->size,_core_cycle);
         _ld_inst_queue.push(std::move(inst));
         issued = true;
       } else {
@@ -128,6 +129,7 @@ void Core::cycle() {
                inst->opcode == Opcode::MOVOUT_POOL) {
       /* ST inst queue */
       if (buffer->check_hit(inst->dest_addr, buffer_id)) {
+        spdlog::debug("[Core {}] MVOUT issue addr: {:x}, size: {:x} at {}", _id, inst->dest_addr, inst->size,_core_cycle);
         _st_inst_queue.push(std::move(inst));
         issued = true;
       }
@@ -137,6 +139,7 @@ void Core::cycle() {
         spdlog::error("null instruction!");
       }
       if(_ex_inst_queue.empty() && can_issue_compute(inst)) {
+        spdlog::debug("[Core {}] ex opcode {} issue at {}", _id,(int)inst->opcode,_core_cycle);
         _ex_inst_queue.push(std::move(inst));
         issued = true;
       }
@@ -189,9 +192,11 @@ void Core::push_memory_response(MemoryAccess *response) {
     _waiting_write_reqs--;
   } else if (response->spad_address >= ACCUM_SPAD_BASE) {
     _acc_spad.fill(response->spad_address, response->buffer_id);
+    //spdlog::debug("[Core {}] memory read request finished acc addr: 0x{:x} size: {} B at {}", _id, response->spad_address,response->size,_core_cycle);
   } else {
     assert(_spad.check_allocated(response->spad_address, response->buffer_id));
     _spad.fill(response->spad_address, response->buffer_id);
+    //spdlog::debug("[Core {}] memory read request finished spad addr: 0x{:x} size: {} B at {}", _id, response->spad_address,response->size,_core_cycle);
   }
   delete response;
 }
@@ -280,13 +285,17 @@ void Core::finish_compute_pipeline(){
     else
       _spad.fill(inst->dest_addr, inst->spad_id);
     if(inst->last_inst) {
-      spdlog::trace("Finished last GEMM {}", inst->spad_id);
+      spdlog::trace("Finished last GEMM {} at {}", inst->spad_id,_core_cycle);
+      spdlog::debug("Finished last GEMM {} at {}", inst->spad_id,_core_cycle);
       inst->my_tile->inst_finished = true;
     }
     double compute_size = inst->tile_k * inst->tile_m * inst->tile_n
                             / (_config.core_config[_id].core_height * _config.core_config[_id].core_width);
     spdlog::trace("Compute size {} tile m {} tile k {} tile n {}", inst->compute_size, inst->tile_m, inst->tile_k, inst->tile_n);
     spdlog::trace("Compute size {} , compute time {}", compute_size, inst->finish_cycle - inst->start_cycle);
+    
+    spdlog::debug("[Core {}] Compute size {} tile m {} tile k {} tile n {}",_id, inst->compute_size, inst->tile_m, inst->tile_k, inst->tile_n);
+    spdlog::debug("[Core {}] Compute size {} , compute time {}",_id, compute_size, inst->finish_cycle - inst->start_cycle);
     _stat_matmul_cycle += compute_size;
     _compute_pipeline.pop();
   }
@@ -353,6 +362,7 @@ void Core::handle_ld_inst_queue() {
                               .start_cycle = _core_cycle,
                               .buffer_id = buffer_id});
         _request_queue.push(access);
+        //spdlog::debug("[Core {}] memory read request issue addr: 0x{:x} size: {} B at {}", _id, access->dram_address,access->size,_core_cycle);
       }
       _ld_inst_queue.pop();
     } else {

@@ -139,6 +139,7 @@ void LangScheduler::parse_request_trace(std::string path) {
   uint32_t id = 0;
   std::getline(trace_file, line); //Skip header
   uint64_t time_offset = 0;
+  uint32_t request_count = 0;
   while (std::getline(trace_file, line)) {
     std::stringstream ss(line);
     std::string time, prompt_length, target_length, cached_len;
@@ -155,14 +156,21 @@ void LangScheduler::parse_request_trace(std::string path) {
     request->prompt_length = std::stoi(prompt_length);
     request->target_length = std::stoi(cached_len) + std::stoi(prompt_length) + std::stoi(target_length);
     request->current_length = std::stoi(cached_len);
+    request->gen_phase = (request->prompt_length == 0);
+    
+    spdlog::info("[DEBUG] Parsed request {}: time={}, prompt_len={}, target_len={}, cached_len={}, calculated_target_len={}", 
+                 request_count, time, prompt_length, target_length, cached_len, request->target_length);
     _request_queue.push(std::move(request));
+    request_count++;
   }
+  spdlog::info("[DEBUG] Parsed {} requests from trace file: {}", request_count, path);
   trace_file.close();
 }
 
 void LangScheduler::init_request(std::unique_ptr<LangRequest>& request) {
   request->start_time = _cycle;
-  request->gen_phase = false;
+  // honor gen_phase from parsing
+  //request->gen_phase = false;
   request->running = false;
   request->key_cache.resize(_num_sim_layers);
   request->value_cache.resize(_num_sim_layers);

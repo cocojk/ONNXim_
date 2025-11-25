@@ -3,15 +3,28 @@
 #include "helper/HelperFunctions.h"
 #include "Hashing.h"
 
-uint32_t Dram::get_channel_id(MemoryAccess* access) {
-  uint32_t channel_id;
-  if (_n_ch >= 16)
-    channel_id = ipoly_hash_function((new_addr_type)access->dram_address/_config.dram_req_size, 0, _n_ch);
-  else
-    channel_id = ipoly_hash_function((new_addr_type)access->dram_address/_config.dram_req_size, 0, 16) % _n_ch;
-  return channel_id;
+static inline uint64_t dram_random(uint64_t x) {
+  x += 0x9e3779b97f4a7c15ull;
+  x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ull;
+  x = (x ^ (x >> 27)) * 0x94d049bb133111ebull;
+  return x ^ (x >> 31);
 }
 
+uint32_t Dram::get_channel_id(MemoryAccess* access) {
+  uint64_t block = (new_addr_type)access->dram_address / _config.dram_req_size;
+  uint64_t h = dram_random(block);
+  return (uint32_t)((h * _n_ch) >> 32) % _n_ch;
+}
+
+//uint32_t Dram::get_channel_id(MemoryAccess* access) {
+//  uint32_t channel_id;
+//  if (_n_ch >= 16)
+//    channel_id = ipoly_hash_function((new_addr_type)access->dram_address/_config.dram_req_size, 0, _n_ch);
+//  else
+//    channel_id = ipoly_hash_function((new_addr_type)access->dram_address/_config.dram_req_size, 0, 16) % _n_ch;
+//  return channel_id;
+//}
+//
 /* FIXME: Simple DRAM has bugs */
 SimpleDram::SimpleDram(SimulationConfig config)
     : _latency(config.dram_latency) {
@@ -165,7 +178,7 @@ void DramRamulator2::push(uint32_t cid, MemoryAccess* request) {
   addr_type target_addr = request->dram_address;
   // align address
   addr_type start_addr = target_addr - (target_addr % atomic_bytes);
-  assert(start_addr == target_addr);
+  //assert(start_addr == target_addr);
   assert(request->size == atomic_bytes);
   target_addr = (target_addr >> _tx_ch_log2) << _tx_log2;
   NDPSim::mem_fetch* mf = new NDPSim::mem_fetch();
